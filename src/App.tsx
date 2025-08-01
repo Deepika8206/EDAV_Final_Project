@@ -1,12 +1,18 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+// Import AuthProvider and useAuth from your updated AuthContext
 import { AuthProvider, useAuth } from './context/AuthContext';
+
+// Import your page/component files
 import { PatientLogin } from './components/patient/PatientLogin';
 import { PatientDashboard } from './components/patient/PatientDashboard';
 import { HospitalLogin } from './components/hospital/HospitalLogin';
 import { HospitalDashboard } from './components/hospital/HospitalDashboard';
+
+// Import Lucide React icons
 import { Shield, Hospital, User } from 'lucide-react';
 
+// --- LandingPage Component ---
 const LandingPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50">
@@ -19,7 +25,7 @@ const LandingPage: React.FC = () => {
             Secure Health Records
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-            Decentralized emergency access to encrypted health records using blockchain smart contracts and IPFS storage. 
+            Decentralized emergency access to encrypted health records using blockchain smart contracts and IPFS storage.
             Be prepared for any medical emergency with instant, secure access to critical health information.
           </p>
         </div>
@@ -34,26 +40,8 @@ const LandingPage: React.FC = () => {
               <p className="text-gray-600 mb-8">
                 Manage your health records, generate emergency QR codes, and control family access to your medical information.
               </p>
-              <div className="space-y-3 mb-8">
-                <div className="flex items-center text-sm text-gray-700">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full mr-3"></div>
-                  <span>Encrypted record storage</span>
-                </div>
-                <div className="flex items-center text-sm text-gray-700">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full mr-3"></div>
-                  <span>Emergency QR code generation</span>
-                </div>
-                <div className="flex items-center text-sm text-gray-700">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full mr-3"></div>
-                  <span>Family guardian management</span>
-                </div>
-                <div className="flex items-center text-sm text-gray-700">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full mr-3"></div>
-                  <span>Access audit trail</span>
-                </div>
-              </div>
               <a
-                href="/patient"
+                href="/patient" // Use a regular anchor for simple navigation to login route
                 className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 transition-colors inline-block"
               >
                 Access Patient Portal
@@ -70,26 +58,8 @@ const LandingPage: React.FC = () => {
               <p className="text-gray-600 mb-8">
                 Emergency access to patient records through blockchain verification and guardian approval system.
               </p>
-              <div className="space-y-3 mb-8">
-                <div className="flex items-center text-sm text-gray-700">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full mr-3"></div>
-                  <span>QR code scanning</span>
-                </div>
-                <div className="flex items-center text-sm text-gray-700">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full mr-3"></div>
-                  <span>Blockchain verification</span>
-                </div>
-                <div className="flex items-center text-sm text-gray-700">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full mr-3"></div>
-                  <span>Guardian approval system</span>
-                </div>
-                <div className="flex items-center text-sm text-gray-700">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full mr-3"></div>
-                  <span>Secure record viewing</span>
-                </div>
-              </div>
               <a
-                href="/hospital"
+                href="/hospital" // Use a regular anchor for simple navigation to login route
                 className="w-full bg-emerald-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-emerald-700 transition-colors inline-block"
               >
                 Access Hospital Portal
@@ -107,21 +77,27 @@ const LandingPage: React.FC = () => {
                   <span className="text-lg font-bold text-blue-600">1</span>
                 </div>
                 <h4 className="font-semibold text-gray-900 mb-2">Upload & Encrypt</h4>
-                <p className="text-sm text-gray-600">Patients upload health records, which are encrypted and stored on IPFS</p>
+                <p className="text-sm text-gray-600">
+                  Patients upload health records, which are encrypted and stored on IPFS
+                </p>
               </div>
               <div className="text-center">
                 <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <span className="text-lg font-bold text-emerald-600">2</span>
                 </div>
                 <h4 className="font-semibold text-gray-900 mb-2">Emergency Access</h4>
-                <p className="text-sm text-gray-600">Hospitals scan QR codes to request emergency access via blockchain</p>
+                <p className="text-sm text-gray-600">
+                  Hospitals scan QR codes to request emergency access via blockchain
+                </p>
               </div>
               <div className="text-center">
                 <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <span className="text-lg font-bold text-orange-600">3</span>
                 </div>
                 <h4 className="font-semibold text-gray-900 mb-2">Guardian Approval</h4>
-                <p className="text-sm text-gray-600">Trusted guardians approve access, unlocking encrypted medical records</p>
+                <p className="text-sm text-gray-600">
+                  Trusted guardians approve access, unlocking encrypted medical records
+                </p>
               </div>
             </div>
           </div>
@@ -131,41 +107,92 @@ const LandingPage: React.FC = () => {
   );
 };
 
+// 🔐 ProtectedRoute wrapper
+const ProtectedRoute: React.FC<{
+  children: JSX.Element;
+  allowedRole: 'patient' | 'hospital' | 'admin'; // Use specific types for roles
+}> = ({ children, allowedRole }) => {
+  const { isAuthenticated, userType, loadingAuth } = useAuth(); // Get loadingAuth
+
+  // Show a loading state while authentication is being checked
+  if (loadingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <p className="text-gray-700 text-lg">Loading secure content...</p>
+      </div>
+    );
+  }
+
+  // If not authenticated OR userType does not match allowedRole, redirect to home
+  if (!isAuthenticated || userType !== allowedRole) {
+    // Optionally log why they're redirected for debugging
+    console.log(`Redirecting: isAuthenticated=${isAuthenticated}, userType=${userType}, allowedRole=${allowedRole}`);
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+};
+
+// 📦 Routes Setup
 const AppRoutes: React.FC = () => {
-  const { isAuthenticated, userType } = useAuth();
+  const { isAuthenticated, userType, loadingAuth } = useAuth(); // Destructure loadingAuth
+
+  // Display a loading indicator while Firebase Auth state is being determined
+  // This is the CRITICAL change to prevent blank page on initial load
+  if (loadingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <p className="text-gray-700 text-lg">Initializing application...</p>
+      </div>
+    );
+  }
 
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
-      <Route 
-        path="/patient" 
+      <Route
+        path="/patient"
         element={
-          isAuthenticated && userType === 'patient' ? 
-            <PatientDashboard /> : 
+          isAuthenticated && userType === 'patient' ? (
+            // If authenticated as a patient, show PatientDashboard via ProtectedRoute
+            <ProtectedRoute allowedRole="patient">
+              <PatientDashboard />
+            </ProtectedRoute>
+          ) : (
+            // Otherwise, show PatientLogin
             <PatientLogin />
-        } 
+          )
+        }
       />
-      <Route 
-        path="/hospital" 
+      <Route
+        path="/hospital"
         element={
-          isAuthenticated && userType === 'hospital' ? 
-            <HospitalDashboard /> : 
+          isAuthenticated && userType === 'hospital' ? (
+            // If authenticated as a hospital, show HospitalDashboard via ProtectedRoute
+            <ProtectedRoute allowedRole="hospital">
+              <HospitalDashboard />
+            </ProtectedRoute>
+          ) : (
+            // Otherwise, show HospitalLogin
             <HospitalLogin />
-        } 
+          )
+        }
       />
+      {/* Fallback route for any unknown paths */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 };
 
-function App() {
+// --- Main App Component ---
+const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <Router>
-        <AppRoutes />
+    <AuthProvider> {/* AuthProvider wraps the entire application to provide context */}
+      <Router> {/* Router wraps the routes for navigation */}
+        <AppRoutes /> {/* AppRoutes handles conditional rendering based on auth state */}
       </Router>
     </AuthProvider>
   );
-}
+};
 
 export default App;
