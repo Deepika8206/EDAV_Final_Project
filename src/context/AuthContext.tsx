@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore'; // Import Firestore functions
-import { auth, db } from '../firebase'; // Ensure 'db' is imported here as well
-import { User, Hospital } from '../types'; // Assuming these types are defined correctly
+import { supabase } from '../supabase';
+import { User, Hospital } from '../types';
 
 interface AuthContextType {
   user: User | null;
@@ -32,27 +30,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [loadingAuth, setLoadingAuth] = useState<boolean>(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        // User is logged in via Firebase Auth
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        const supabaseUser = session.user;
         let fetchedUserType: 'patient' | 'hospital' | null = null;
         let fetchedUserData: User | Hospital | null = null;
 
         try {
-          // Attempt to fetch patient data first
-          const patientDocRef = doc(db, 'patients', firebaseUser.uid);
-          const patientDocSnap = await getDoc(patientDocRef);
+          // Check if user is a patient
+          const { data: patientData } = await supabase
+            .from('patients')
+            .select('*')
+            .eq('id', supabaseUser.id)
+            .single();
 
-          if (patientDocSnap.exists()) {
-            fetchedUserData = { id: firebaseUser.uid, ...patientDocSnap.data() } as User;
+          if (patientData) {
+            fetchedUserData = patientData as User;
             fetchedUserType = 'patient';
           } else {
-            // If not a patient, check if it's a hospital
-            const hospitalDocRef = doc(db, 'hospitals', firebaseUser.uid);
-            const hospitalDocSnap = await getDoc(hospitalDocRef);
+            // Check if user is a hospital
+            const { data: hospitalData } = await supabase
+              .from('hospitals')
+              .select('*')
+              .eq('id', supabaseUser.id)
+              .single();
 
-            if (hospitalDocSnap.exists()) {
-              fetchedUserData = { id: firebaseUser.uid, ...hospitalDocSnap.data() } as Hospital;
+            if (hospitalData) {
+              fetchedUserData = hospitalData as Hospital;
               fetchedUserType = 'hospital';
             }
           }
@@ -67,72 +71,58 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
             setUserType(fetchedUserType);
             setIsAuthenticated(true);
-            // Optionally, store userType in localStorage for quicker initial load next time
             localStorage.setItem('userType', fetchedUserType);
           } else {
-            // Firebase user exists, but no corresponding patient/hospital document in Firestore.
-            // This can happen if a user registers but the profile data saving fails,
-            // or if it's a new user and data hasn't been saved yet.
-            console.warn("Firebase user exists but no profile data found in Firestore for UID:", firebaseUser.uid);
-            // Fallback: Set a basic user object
-            setUser({ id: firebaseUser.uid, email: firebaseUser.email || '', name: firebaseUser.displayName || 'Unknown User' });
+            setUser({ id: supabaseUser.id, email: supabaseUser.email || '', name: supabaseUser.user_metadata?.name || 'Unknown User' });
             setHospital(null);
-            setUserType(null); // We don't know the type without profile data
-            setIsAuthenticated(false); // Or true, depending on if you consider them "authenticated" without full profile
+            setUserType(null);
+            setIsAuthenticated(false);
           }
-
         } catch (error) {
-          console.error("Error fetching user profile from Firestore:", error);
-          // Fallback to basic Firebase user info if Firestore fails
-          setUser({ id: firebaseUser.uid, email: firebaseUser.email || '', name: firebaseUser.displayName || 'Error User' });
+          console.error('Error fetching user profile:', error);
+          setUser({ id: supabaseUser.id, email: supabaseUser.email || '', name: 'Error User' });
           setHospital(null);
           setUserType(null);
           setIsAuthenticated(false);
         }
-
       } else {
-        // User is NOT logged in
         setUser(null);
         setHospital(null);
         setUserType(null);
         setIsAuthenticated(false);
-        // Clear all session data (important for security and consistency)
         localStorage.clear();
       }
-      setLoadingAuth(false); // Auth state has been determined
+      setLoadingAuth(false);
     });
 
-    return () => unsubscribe(); // Clean up the listener on unmount
-  }, []); // Empty dependency array means this runs once on mount/unmount
+    return () => subscription.unsubscribe();
+  }, []);
 
-  // Modified login function to also save data to Firestore
-  const login = async (firebaseUid: string, userData: User | Hospital, type: 'patient' | 'hospital') => {
+  const login = async (supabaseUid: string, userData: User | Hospital, type: 'patient' | 'hospital') => {
     try {
       if (type === 'patient') {
-        await setDoc(doc(db, 'patients', firebaseUid), { ...userData, id: firebaseUid });
+        await supabase.from('patients').upsert({ ...userData, id: supabaseUid });
         setUser(userData as User);
         setHospital(null);
       } else {
-        await setDoc(doc(db, 'hospitals', firebaseUid), { ...userData, id: firebaseUid });
+        await supabase.from('hospitals').upsert({ ...userData, id: supabaseUid });
         setHospital(userData as Hospital);
         setUser(null);
       }
       setUserType(type);
       setIsAuthenticated(true);
-      localStorage.setItem('userType', type); // Store user type in localStorage (optional, but can speed up initial role detection)
+      localStorage.setItem('userType', type);
     } catch (error) {
-      console.error("Error saving user data to Firestore during login:", error);
-      throw error; // Re-throw to allow calling component to handle
+      console.error('Error saving user data during login:', error);
+      throw error;
     }
   };
 
   const logout = async () => {
     try {
-      await auth.signOut(); // Sign out from Firebase
-      // The onAuthStateChanged listener will automatically update the states
-      // upon successful signOut, so manual state clearing here is redundant but harmless.
+      await supabase.auth.signOut();
     } catch (error) {
-      console.error("Error during Firebase logout:", error);
+      console.error('Error during logout:', error);
     }
   };
 

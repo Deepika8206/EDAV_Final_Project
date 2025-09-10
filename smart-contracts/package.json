@@ -1,0 +1,13 @@
+{
+  "name": "edav-contracts",
+  "version": "1.0.0",
+  "scripts": {
+    "deploy": "hardhat run deploy.js --network mumbai",
+    "compile": "hardhat compile"
+  },
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.2.3",
+    "hardhat": "^2.17.1",
+    "ethers": "^5.7.2"
+  }
+}

@@ -1,13 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Shield, Smartphone, Mail, Lock, Fingerprint, QrCode } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { auth, db } from '../../firebase'; // Import 'db' here for Firestore operations
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-} from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore'; // Import Firestore functions
-import { User } from '../types'; // Import your User type
+import { supabase } from '../../supabase';
+import { User } from '../../types';
+import { patientAPI } from '../../services/api';
 
 export const PatientLogin: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -50,32 +46,27 @@ export const PatientLogin: React.FC = () => {
     }
 
     try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        formData.email,
-        formData.password
-      );
-      const firebaseUser = userCredential.user;
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
 
-      // --- FETCH ACTUAL USER DATA FROM FIRESTORE AFTER SUCCESSFUL LOGIN ---
-      const patientDocRef = doc(db, 'patients', firebaseUser.uid);
-      const patientDocSnap = await getDoc(patientDocRef);
+      if (authError) throw authError;
+      if (!data.user) throw new Error('Login failed');
 
-      if (patientDocSnap.exists()) {
-        // User profile found in Firestore
-        const patientData = { id: firebaseUser.uid, ...patientDocSnap.data() } as User;
-        // Use the authContextLogin to set the global user state
-        authContextLogin(firebaseUser.uid, patientData, 'patient');
+      const { data: patientData } = await supabase
+        .from('patients')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
+
+      if (patientData) {
+        authContextLogin(data.user.id, patientData as User, 'patient');
       } else {
-        // User exists in Firebase Auth, but their full profile might not be in Firestore.
-        // This can happen if the Firestore save failed during registration, or it's an old user.
-        console.warn("User exists in Firebase Auth but no full patient profile found in Firestore. UID:", firebaseUser.uid);
-        // Create a minimal user object for the AuthContext based on Firebase Auth data
         const minimalUser: User = {
-          id: firebaseUser.uid,
-          email: firebaseUser.email || '',
-          name: firebaseUser.displayName || 'Patient User', // Fallback name
-          // Provide default/empty values for other fields if needed by your User type
+          id: data.user.id,
+          email: data.user.email || '',
+          name: data.user.user_metadata?.name || 'Patient User',
           mobile: '',
           dateOfBirth: '',
           gender: '',
@@ -84,7 +75,7 @@ export const PatientLogin: React.FC = () => {
           walletAddress: '',
           qrCode: '',
         };
-        authContextLogin(firebaseUser.uid, minimalUser, 'patient');
+        authContextLogin(data.user.id, minimalUser, 'patient');
         setError('Your full profile could not be loaded. Please update your profile information in the dashboard.');
       }
 
@@ -133,32 +124,39 @@ export const PatientLogin: React.FC = () => {
         return;
       }
 
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        formData.email,
-        formData.password
-      );
-      const firebaseUser = userCredential.user;
+      const { data, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            name: formData.name,
+          }
+        }
+      });
 
-      // Prepare the full patient data to save to Firestore
+      if (authError) throw authError;
+      if (!data.user) throw new Error('Registration failed');
+
+      const walletResponse = await patientAPI.generateWallet();
+      if (!walletResponse.success) {
+        throw new Error('Failed to generate wallet');
+      }
+
       const patientDataToSave: User = {
-        id: firebaseUser.uid, // Use Firebase UID as the document ID
+        id: data.user.id,
         name: formData.name,
         email: formData.email,
         mobile: formData.mobile,
         dateOfBirth: formData.dateOfBirth,
         gender: formData.gender,
         bloodGroup: formData.bloodGroup,
-        walletAddress: formData.walletAddress || '0x' + Math.random().toString(16).substr(2, 40),
+        walletAddress: walletResponse.wallet.address,
         emergencyContact: formData.emergencyContact,
-        qrCode: 'patient-emergency-qr-' + Math.random().toString(36).substr(2, 9), // Generate a QR code ID
+        qrCode: 'patient-emergency-qr-' + Math.random().toString(36).substr(2, 9),
       };
 
-      // Save additional formData to Firestore
-      await setDoc(doc(db, 'patients', firebaseUser.uid), patientDataToSave);
-
-      // Log the user in via AuthContext after successful registration AND Firestore save
-      authContextLogin(firebaseUser.uid, patientDataToSave, 'patient');
+      await supabase.from('patients').insert(patientDataToSave);
+      authContextLogin(data.user.id, patientDataToSave, 'patient');
 
     } catch (err: any) {
       console.error('Registration error:', err);

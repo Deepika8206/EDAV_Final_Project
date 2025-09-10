@@ -1,14 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { Upload, FileText } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import CryptoJS from 'crypto-js';
-import { db } from '../../firebase';
-import { collection, addDoc } from 'firebase/firestore';
-import axios from 'axios'; // <-- Import axios for making HTTP requests
+import { patientAPI } from '../../services/api';
+import { supabase } from '../../supabase';
 
-// Pinata API configuration
-const PINATA_API_KEY = process.env.REACT_APP_PINATA_API_KEY || 'YOUR_PINATA_API_KEY';
-const PINATA_SECRET_API_KEY = process.env.REACT_APP_PINATA_SECRET_API_KEY || 'YOUR_PINATA_SECRET_API_KEY';
+
 
 export const UploadRecord: React.FC<{ onUploadSuccess: () => void }> = ({ onUploadSuccess }) => {
   const { user } = useAuth();
@@ -40,76 +36,34 @@ export const UploadRecord: React.FC<{ onUploadSuccess: () => void }> = ({ onUplo
       setUploadError("User not logged in.");
       return;
     }
-    if (!key) {
-      setUploadError("Encryption key is missing.");
-      return;
-    }
-    if (!PINATA_API_KEY || !PINATA_SECRET_API_KEY) {
-      setUploadError("Pinata API keys are not configured.");
-      return;
-    }
 
     setUploading(true);
     setUploadError(null);
 
     try {
-      // 1. Read the file content
-      const arrayBuffer = await file.arrayBuffer();
-      const wordArray = CryptoJS.lib.WordArray.create(arrayBuffer as any);
-
-      // 2. Encrypt the file content
-      const encrypted = CryptoJS.AES.encrypt(wordArray, key).toString();
-      const encryptedBlob = new Blob([encrypted], { type: 'text/plain' });
-
-      // 3. Prepare for Pinata IPFS upload
-      const formData = new FormData();
-      formData.append('file', encryptedBlob, `${file.name}.encrypted`);
+      const response = await patientAPI.uploadRecord(file, user.id);
       
-      const pinataMetadata = JSON.stringify({
-        name: `${file.name}.encrypted`,
-      });
-      formData.append('pinataMetadata', pinataMetadata);
+      if (response.success) {
 
-      // 4. Upload to Pinata IPFS
-      console.log('Uploading file to Pinata IPFS...');
-      const response = await axios.post('https://api.pinata.cloud/pinning/pinFileToIPFS', formData, {
-        maxBodyLength: Infinity,
-        headers: {
-          'Content-Type': `multipart/form-data; boundary=${formData.getBoundary}`, // Required for Pinata
-          pinata_api_key: '5a2bb3ee09636908a74f',
-          pinata_secret_api_key: '7cc663fa3ae2acb2a96d9b3c3ec3298554e400ff4fcc380ac615eda0d0c13650',
-        },
-      });
 
-      const ipfsCid = response.data.IpfsHash;
-      console.log('Pinata IPFS CID:', ipfsCid);
-
-      // 5. Store metadata in Firestore
-      const recordData = {
-        patientId: user.id,
-        name: file.name,
-        type: file.type,
-        uploadDate: new Date().toISOString(),
-        ipfsCid: ipfsCid,
-        isEncrypted: true,
-        size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
-        encryptionKey: key, // Still insecure, remember the warning!
-      };
-
-      await addDoc(collection(db, 'healthRecords'), recordData);
-      console.log('Record metadata saved to Firestore');
-
-      setSelectedFile(null);
-      setEncryptionKey('');
-      onUploadSuccess();
+        await supabase.from('health_records').insert({
+          patient_id: user.id,
+          name: response.fileName,
+          type: file.type,
+          upload_date: new Date().toISOString(),
+          ipfs_cid: response.ipfsHash,
+          is_encrypted: true,
+          size: `${(response.size / (1024 * 1024)).toFixed(2)} MB`,
+        });
+        setSelectedFile(null);
+        setEncryptionKey('');
+        onUploadSuccess();
+      } else {
+        setUploadError(response.error || 'Upload failed');
+      }
     } catch (err: any) {
       console.error('File upload error:', err);
-      // More descriptive error handling for API failures
-      if (axios.isAxiosError(err) && err.response) {
-        setUploadError(`Pinata API Error: ${err.response.data.error || err.response.statusText}`);
-      } else {
-        setUploadError(err.message || 'Failed to upload file.');
-      }
+      setUploadError(err.message || 'Failed to upload file.');
     } finally {
       setUploading(false);
     }
