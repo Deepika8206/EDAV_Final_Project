@@ -1,10 +1,10 @@
-const { create } = require('@web3-storage/w3up-client');
 const crypto = require('crypto');
 
 let client;
 
 const initIPFS = async () => {
   if (!client) {
+    const { create } = await import('@web3-storage/w3up-client');
     client = await create();
     // You'll need to authenticate with Web3.Storage
     // Follow their docs for proper authentication

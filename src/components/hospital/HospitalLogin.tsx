@@ -10,7 +10,7 @@ export const HospitalLogin: React.FC = () => {
   });
   const { login } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Mock hospital login
@@ -22,7 +22,11 @@ export const HospitalLogin: React.FC = () => {
       role: 'doctor' as const,
     };
     
-    login(mockHospital, 'hospital');
+    try {
+      await login('hospital-1', mockHospital, 'hospital');
+    } catch (error) {
+      console.error('Login failed:', error);
+    }
   };
 
   return (

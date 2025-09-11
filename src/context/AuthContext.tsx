@@ -45,7 +45,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             .single();
 
           if (patientData) {
-            fetchedUserData = patientData as User;
+            // Map database fields to User interface
+            fetchedUserData = {
+              id: patientData.id,
+              name: patientData.name,
+              email: patientData.email,
+              mobile: patientData.mobile,
+              dateOfBirth: patientData.date_of_birth,
+              gender: patientData.gender,
+              bloodGroup: patientData.blood_group,
+              walletAddress: patientData.wallet_address,
+              emergencyContact: patientData.emergency_contact,
+              qrCode: patientData.qr_code,
+            } as User;
             fetchedUserType = 'patient';
           } else {
             // Check if user is a hospital
@@ -72,18 +84,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setUserType(fetchedUserType);
             setIsAuthenticated(true);
             localStorage.setItem('userType', fetchedUserType);
-          } else {
-            setUser({ id: supabaseUser.id, email: supabaseUser.email || '', name: supabaseUser.user_metadata?.name || 'Unknown User' });
-            setHospital(null);
-            setUserType(null);
-            setIsAuthenticated(false);
           }
         } catch (error) {
           console.error('Error fetching user profile:', error);
-          setUser({ id: supabaseUser.id, email: supabaseUser.email || '', name: 'Error User' });
-          setHospital(null);
-          setUserType(null);
-          setIsAuthenticated(false);
         }
       } else {
         setUser(null);
@@ -100,12 +103,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = async (supabaseUid: string, userData: User | Hospital, type: 'patient' | 'hospital') => {
     try {
+      console.log('Attempting to save user data:', { supabaseUid, userData, type });
       if (type === 'patient') {
-        await supabase.from('patients').upsert({ ...userData, id: supabaseUid });
+        const { data, error } = await supabase.from('patients').upsert({ ...userData, id: supabaseUid });
+        if (error) {
+          console.error('Supabase upsert error:', error);
+          throw error;
+        }
+        console.log('Patient data upserted successfully:', data);
         setUser(userData as User);
         setHospital(null);
       } else {
-        await supabase.from('hospitals').upsert({ ...userData, id: supabaseUid });
+        const { data, error } = await supabase.from('hospitals').upsert({ ...userData, id: supabaseUid });
+        if (error) {
+          console.error('Supabase upsert error:', error);
+          throw error;
+        }
+        console.log('Hospital data upserted successfully:', data);
         setHospital(userData as Hospital);
         setUser(null);
       }

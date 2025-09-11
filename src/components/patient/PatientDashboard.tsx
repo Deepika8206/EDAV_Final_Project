@@ -4,11 +4,6 @@ import { Navigation } from '../common/Navigation';
 import { QrCode, Upload, Users, FileText, Activity, Shield, Plus, Eye, Trash2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import QRCode from 'react-qr-code';
-// Make sure this path is correct for your firebase instance
-import { db } from '../../firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-
-// THIS IS THE ONLY ONE YOU SHOULD KEEP
 
 
 
@@ -61,7 +56,7 @@ export const PatientDashboard: React.FC = () => {
   // New state for controlling the visibility of the UploadRecord modal
   const [showUploadModal, setShowUploadModal] = useState(false);
 
-  // --- Data Fetching Logic (Refactored to be callable) ---
+  // --- Data Fetching Logic (Mock data for now) ---
   const fetchPatientData = async () => {
     if (!user?.id) {
       setLoadingData(false);
@@ -72,53 +67,16 @@ export const PatientDashboard: React.FC = () => {
     setFetchError(null);
 
     try {
-      // --- Fetch Guardians ---
-      const guardiansRef = collection(db, 'guardians');
-      const qGuardians = query(guardiansRef, where('patientId', '==', user.id));
-      const querySnapshotGuardians = await getDocs(qGuardians);
-      const fetchedGuardians: Guardian[] = [];
-      querySnapshotGuardians.forEach((doc) => {
-        fetchedGuardians.push({ id: doc.id, ...doc.data() } as Guardian);
-      });
-      setGuardians(fetchedGuardians);
-
-      // --- Fetch Health Records ---
-      const recordsRef = collection(db, 'healthRecords');
-      const qRecords = query(recordsRef, where('patientId', '==', user.id));
-      const querySnapshotRecords = await getDocs(qRecords);
-      const fetchedRecords: HealthRecord[] = [];
-      querySnapshotRecords.forEach((doc) => {
-        // Ensure uploadDate is formatted if it's a Firestore Timestamp or Date object
-        const recordData = doc.data();
-        fetchedRecords.push({
-            id: doc.id,
-            name: recordData.name,
-            type: recordData.type,
-            // Convert Firestore Timestamp to ISO string if applicable
-            // Example: recordData.uploadDate?.toDate().toISOString() || ''
-            uploadDate: recordData.uploadDate, // Assuming it's already a string or handled in UploadRecord
-            ipfsCid: recordData.ipfsCid,
-            isEncrypted: recordData.isEncrypted,
-            size: recordData.size,
-            patientId: recordData.patientId,
-        } as HealthRecord);
-      });
-      setRecords(fetchedRecords);
-
-      // --- Fetch Access Logs ---
-      const accessLogsRef = collection(db, 'accessLogs');
-      const qAccessLogs = query(accessLogsRef, where('patientId', '==', user.id));
-      const querySnapshotAccessLogs = await getDocs(qAccessLogs);
-      const fetchedAccessLogs: AccessLog[] = [];
-      querySnapshotAccessLogs.forEach((doc) => {
-        fetchedAccessLogs.push({ id: doc.id, ...doc.data() } as AccessLog);
-      });
-      setAccessLogs(fetchedAccessLogs);
-
+      // Mock data - replace with actual API calls
+      setTimeout(() => {
+        setGuardians([]);
+        setRecords([]);
+        setAccessLogs([]);
+        setLoadingData(false);
+      }, 1000);
     } catch (error: any) {
       console.error('Error fetching patient data:', error);
       setFetchError(`Failed to load data: ${error.message || 'Unknown error'}`);
-    } finally {
       setLoadingData(false);
     }
   };
@@ -380,8 +338,17 @@ export const PatientDashboard: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-            {/* Render the UploadRecord component here, passing the success callback */}
-            <UploadRecord onUploadSuccess={handleUploadSuccess} />
+            {/* UploadRecord component placeholder */}
+            <div className="text-center p-4">
+              <h3 className="text-lg font-semibold mb-2">Upload Record</h3>
+              <p className="text-gray-600 mb-4">Upload functionality will be implemented here</p>
+              <button 
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                onClick={handleUploadSuccess}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

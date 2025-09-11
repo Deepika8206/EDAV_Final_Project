@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Shield, Smartphone, Mail, Lock, Fingerprint, QrCode } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Shield, Mail, Lock, Fingerprint, QrCode } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../supabase';
 import { User } from '../../types';
-import { patientAPI } from '../../services/api';
 
 export const PatientLogin: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -54,42 +53,9 @@ export const PatientLogin: React.FC = () => {
       if (authError) throw authError;
       if (!data.user) throw new Error('Login failed');
 
-      const { data: patientData } = await supabase
-        .from('patients')
-        .select('*')
-        .eq('id', data.user.id)
-        .single();
-
-      if (patientData) {
-        authContextLogin(data.user.id, patientData as User, 'patient');
-      } else {
-        const minimalUser: User = {
-          id: data.user.id,
-          email: data.user.email || '',
-          name: data.user.user_metadata?.name || 'Patient User',
-          mobile: '',
-          dateOfBirth: '',
-          gender: '',
-          bloodGroup: '',
-          emergencyContact: '',
-          walletAddress: '',
-          qrCode: '',
-        };
-        authContextLogin(data.user.id, minimalUser, 'patient');
-        setError('Your full profile could not be loaded. Please update your profile information in the dashboard.');
-      }
-
     } catch (err: any) {
       console.error('Login error:', err);
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-        setError('Invalid email or password.');
-      } else if (err.code === 'auth/invalid-email') {
-        setError('The email address is not valid.');
-      } else if (err.code === 'auth/too-many-requests') {
-        setError('Too many failed login attempts. Please try again later.');
-      } else {
-        setError(err.message || 'Login failed. Please try again.');
-      }
+      setError(err.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -115,7 +81,7 @@ export const PatientLogin: React.FC = () => {
       return; // Important: return here to prevent immediate submission if not on final step
     }
     
-    // --- FINAL STEP: Register user with email/password and save full profile to Firestore ---
+    // --- FINAL STEP: Register user with Supabase ---
     setLoading(true);
     try {
       if (!formData.email || !formData.password) {
@@ -130,45 +96,35 @@ export const PatientLogin: React.FC = () => {
         options: {
           data: {
             name: formData.name,
-          }
+          },
+          emailRedirectTo: undefined
         }
       });
 
       if (authError) throw authError;
       if (!data.user) throw new Error('Registration failed');
 
-      const walletResponse = await patientAPI.generateWallet();
-      if (!walletResponse.success) {
-        throw new Error('Failed to generate wallet');
-      }
-
-      const patientDataToSave: User = {
+      const patientDataToSave = {
         id: data.user.id,
         name: formData.name,
         email: formData.email,
         mobile: formData.mobile,
-        dateOfBirth: formData.dateOfBirth,
+        date_of_birth: formData.dateOfBirth,
         gender: formData.gender,
-        bloodGroup: formData.bloodGroup,
-        walletAddress: walletResponse.wallet.address,
-        emergencyContact: formData.emergencyContact,
-        qrCode: 'patient-emergency-qr-' + Math.random().toString(36).substr(2, 9),
+        blood_group: formData.bloodGroup,
+        wallet_address: formData.walletAddress || '0x' + Math.random().toString(16).substr(2, 40),
+        emergency_contact: formData.emergencyContact,
+        qr_code: 'patient-emergency-qr-' + Math.random().toString(36).substr(2, 9),
       };
 
-      await supabase.from('patients').insert(patientDataToSave);
-      authContextLogin(data.user.id, patientDataToSave, 'patient');
-
+      console.log('Registration successful, saving to database:', patientDataToSave);
+      // Wait a moment for auth state to be set
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      await authContextLogin(data.user.id, patientDataToSave, 'patient');
+      console.log('Patient data saved successfully');
     } catch (err: any) {
       console.error('Registration error:', err);
-      if (err.code === 'auth/email-already-in-use') {
-        setError('This email is already registered. Please log in or use a different email.');
-      } else if (err.code === 'auth/weak-password') {
-        setError('Password should be at least 6 characters.');
-      } else if (err.code === 'auth/invalid-email') {
-        setError('The email address is not valid.');
-      } else {
-        setError(err.message || 'Registration failed. Please try again.');
-      }
+      setError(err.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
