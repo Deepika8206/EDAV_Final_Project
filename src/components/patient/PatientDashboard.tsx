@@ -194,24 +194,60 @@ export const PatientDashboard: React.FC = () => {
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Emergency QR Code</h3>
           <div className="text-center">
-            {user?.walletAddress && user?.qrCode ? (
-              <div className="inline-flex items-center justify-center p-4 bg-gray-50 rounded-xl mb-4">
-                <QRCode
-                  value={`emergency:${user.walletAddress}:${user.qrCode}`}
-                  size={160}
-                  level="M"
-                />
+            {user?.walletAddress ? (
+              <div className="space-y-2">
+                <div className="inline-flex items-center justify-center p-4 bg-white border rounded-xl mb-4">
+                  <QRCode
+                    value={JSON.stringify({
+                      type: 'EDAV_EMERGENCY',
+                      patientAddress: user.walletAddress,
+                      patientId: user.id,
+                      patientName: user.name,
+                      timestamp: Date.now()
+                    })}
+                    size={160}
+                    level="M"
+                  />
+                </div>
+                <div className="text-xs text-gray-500 bg-gray-100 p-2 rounded">
+                  <p><strong>Patient:</strong> {user.name}</p>
+                  <p><strong>Wallet:</strong> {user.walletAddress.slice(0, 10)}...</p>
+                  <p><strong>ID:</strong> {user.id.slice(0, 8)}...</p>
+                </div>
               </div>
             ) : (
-              <div className="p-4 bg-gray-50 rounded-xl mb-4 text-gray-600">
-                No QR code available. Please ensure your profile is complete.
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl mb-4 text-yellow-800">
+                <p className="font-medium">QR Code Not Available</p>
+                <p className="text-sm mt-1">Wallet address missing. Please complete your registration.</p>
+                {user && (
+                  <div className="text-xs mt-2 text-left">
+                    <p>Debug info:</p>
+                    <p>User ID: {user.id || 'Missing'}</p>
+                    <p>Name: {user.name || 'Missing'}</p>
+                    <p>Wallet: {user.walletAddress || 'Missing'}</p>
+                  </div>
+                )}
               </div>
             )}
             <p className="text-sm text-gray-600 mb-4">
-              Scan this QR code for emergency access to your health records
+              {user?.walletAddress ? 
+                'Scan this QR code for emergency access to your health records' :
+                'Complete your profile to generate an emergency QR code'
+              }
             </p>
-            {user?.walletAddress && user?.qrCode && (
-              <button className="text-blue-600 hover:text-blue-700 font-medium text-sm">
+            {user?.walletAddress && (
+              <button 
+                className="text-blue-600 hover:text-blue-700 font-medium text-sm"
+                onClick={() => {
+                  const canvas = document.querySelector('canvas');
+                  if (canvas) {
+                    const link = document.createElement('a');
+                    link.download = `emergency-qr-${user.name}.png`;
+                    link.href = canvas.toDataURL();
+                    link.click();
+                  }
+                }}
+              >
                 Download QR Code
               </button>
             )}
@@ -240,11 +276,17 @@ export const PatientDashboard: React.FC = () => {
               </div>
             </button>
 
-            <button className="w-full flex items-center space-x-3 p-4 text-left bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors">
+            <button 
+              className="w-full flex items-center space-x-3 p-4 text-left bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors"
+              onClick={() => {
+                // Force re-render of QR code with new timestamp
+                window.location.reload();
+              }}
+            >
               <QrCode className="w-5 h-5 text-orange-600" />
               <div>
-                <div className="font-medium text-gray-900">Generate New QR</div>
-                <div className="text-sm text-gray-600">Create emergency access code</div>
+                <div className="font-medium text-gray-900">Refresh QR Code</div>
+                <div className="text-sm text-gray-600">Update emergency access code</div>
               </div>
             </button>
           </div>

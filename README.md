@@ -8,7 +8,7 @@ A blockchain-based emergency medical data access system with multi-signature app
 - **Backend**: Node.js + Express + Firebase
 - **Blockchain**: Solidity + Polygon Mumbai
 - **Storage**: IPFS (Web3.Storage)
-- **Auth**: Firebase Authentication + OTP
+- **Auth**: Supabase Authentication + OTP
 
 ## Setup Instructions
 
@@ -46,7 +46,9 @@ POLYGON_RPC_URL=https://rpc-mumbai.maticvigil.com
 CONTRACT_ADDRESS=your_deployed_contract_address
 PRIVATE_KEY=your_server_private_key
 WEB3_STORAGE_TOKEN=your_web3_storage_token
-FIREBASE_PROJECT_ID=edav-login
+SUPABASE_URL=your_supabase_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_KEY=your_supabase_service_key
 ```
 
 ### Smart Contracts (.env)
@@ -69,7 +71,7 @@ PRIVATE_KEY=your_deployment_private_key
 - No MetaMask required (server-managed wallets)
 - Multi-signature guardian approval
 - Encrypted IPFS storage
-- Firebase OTP authentication
+- Supabase OTP authentication
 - Emergency QR codes
 - Audit trail on blockchain
 
@@ -78,4 +80,4 @@ PRIVATE_KEY=your_deployment_private_key
 - Encryption keys managed server-side
 - Multi-sig approval prevents unauthorized access
 - All transactions logged on blockchain
-- Firebase handles user authentication
+- Supabase handles user authentication

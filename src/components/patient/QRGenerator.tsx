@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { QrCode, Download } from 'lucide-react';
 import { patientAPI } from '../../services/api';
+import QRCode from 'react-qr-code';
 
 interface QRGeneratorProps {
   patientAddress: string;
@@ -32,22 +33,13 @@ export const QRGenerator: React.FC<QRGeneratorProps> = ({ patientAddress, ipfsHa
   };
 
   const downloadQR = () => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    canvas.width = 300;
-    canvas.height = 300;
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, 300, 300);
-    ctx.fillStyle = 'black';
-    ctx.font = '12px monospace';
-    ctx.fillText('EDAV Emergency QR', 10, 20);
-    
-    const link = document.createElement('a');
-    link.download = 'emergency-qr.png';
-    link.href = canvas.toDataURL();
-    link.click();
+    const canvas = document.querySelector('canvas');
+    if (canvas) {
+      const link = document.createElement('a');
+      link.download = 'emergency-qr.png';
+      link.href = canvas.toDataURL();
+      link.click();
+    }
   };
 
   return (
@@ -69,9 +61,13 @@ export const QRGenerator: React.FC<QRGeneratorProps> = ({ patientAddress, ipfsHa
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           </div>
         ) : qrData ? (
-          <div className="inline-block p-4 bg-gray-100 rounded-lg">
-            <QrCode className="w-32 h-32 text-gray-600 mx-auto" />
-            <p className="text-xs text-gray-500 mt-2">Emergency Access QR</p>
+          <div className="inline-block p-4 bg-white rounded-lg border">
+            <QRCode
+              value={qrData}
+              size={200}
+              level="M"
+            />
+            <p className="text-xs text-gray-500 mt-2 text-center">Emergency Access QR</p>
           </div>
         ) : (
           <div className="text-gray-500">No QR data available</div>

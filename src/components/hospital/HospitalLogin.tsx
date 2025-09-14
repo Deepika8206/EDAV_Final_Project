@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Hospital, Shield, Mail, Lock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../supabase';
 
 export const HospitalLogin: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -8,24 +9,29 @@ export const HospitalLogin: React.FC = () => {
     password: '',
     registrationId: '',
   });
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Mock hospital login
-    const mockHospital = {
-      id: 'hospital-1',
-      name: 'City General Hospital',
-      email: formData.email,
-      registrationId: formData.registrationId || 'REG-12345',
-      role: 'doctor' as const,
-    };
+    setError(null);
+    setLoading(true);
     
     try {
-      await login('hospital-1', mockHospital, 'hospital');
-    } catch (error) {
-      console.error('Login failed:', error);
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (authError) throw authError;
+      if (!data.user) throw new Error('Login failed');
+
+    } catch (err: any) {
+      console.error('Hospital login error:', err);
+      setError(err.message || 'Login failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -95,15 +101,23 @@ export const HospitalLogin: React.FC = () => {
                 onChange={(e) => setFormData({ ...formData, registrationId: e.target.value })}
                 className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                 placeholder="Hospital registration ID"
+                disabled={loading}
               />
             </div>
           </div>
 
+          {error && (
+            <div className="text-red-500 text-sm text-center">
+              {error}
+            </div>
+          )}
+
           <button
             type="submit"
             className="w-full bg-emerald-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-emerald-700 transition-colors"
+            disabled={loading}
           >
-            Sign In to Hospital Portal
+            {loading ? 'Signing In...' : 'Sign In to Hospital Portal'}
           </button>
         </form>
 
